@@ -1,0 +1,5 @@
+[server]
+headless = true
+gatherUsageStats = false
+enableCORS = false
+enableXsrfProtection = false
