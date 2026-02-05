@@ -1,6 +1,7 @@
 baostock
 pandas
-streamlit
+streamlit>=1.40.0
 plotly
 numpy
 openpyxl
+altair<5
