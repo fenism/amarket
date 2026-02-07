@@ -49,13 +49,14 @@ def main():
     st.write("Debug: Title rendered.") # Debug line
     
     data = {}
-    with st.spinner("正在拉取实时数据..."):
-        try:
-            data = get_market_data()
-            st.write("Debug: Data fetched.") # Debug line
-        except Exception as e:
-            st.error(f"Critical Data Fetch Error: {e}")
-            return
+    # Removed spinner to see if it blocks
+    st.write("Debug: Fetching data...")
+    try:
+        data = get_market_data()
+        st.write("Debug: Data fetched.") # Debug line
+    except Exception as e:
+        st.error(f"Critical Data Fetch Error: {e}")
+        return
         
     if not data:
         st.error("Error: get_market_data returned None or empty.")
