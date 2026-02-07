@@ -10,7 +10,14 @@ st.set_page_config(page_title="Macro Market Dashboard (Real-time + AI)", layout=
 # Sidebar Configuration
 with st.sidebar:
     st.header("⚙️ Settings")
-    api_key = st.text_input("Gemini API Key", type="password", help="Enter your Google Gemini API Key for smart analysis.")
+    
+    # Try to get from secrets first
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success("API Key loaded from Secrets")
+    else:
+        api_key = st.text_input("Gemini API Key", type="password", help="Enter your Google Gemini API Key for smart analysis.")
+    
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
     
