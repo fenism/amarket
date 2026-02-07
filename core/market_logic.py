@@ -129,7 +129,7 @@ class MarketAnalyzer:
                 }
 
             # Step 5: Style (Relative Strength)
-            if "sh" in results and "cyb" in results:
+            if "sh" in results and "cyb" in results and "data" in results["sh"] and "data" in results["cyb"]:
                 df_sh = results["sh"]["data"]
                 df_cyb = results["cyb"]["data"]
                 rs_line, rs = indicators.calculate_relative_strength(df_cyb['close'], df_sh['close'])
