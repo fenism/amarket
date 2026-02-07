@@ -24,9 +24,9 @@ with st.sidebar:
     # Model Selection
     model_name = st.selectbox(
         "Gemini Model", 
-        ["gemini-3.0-pro", "gemini-2.0-pro", "gemini-1.5-pro", "gemini-1.5-pro-001"],
+        ["gemini-3-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
         index=0,
-        help="Select the model version. Check 'List Models' below to see what your key supports."
+        help="Select the model version. Your key supports 3-pro-preview and 2.5-pro."
     )
     
     # Debugging: List Models
