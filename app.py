@@ -22,7 +22,12 @@ with st.sidebar:
         os.environ["GEMINI_API_KEY"] = api_key
 
     # Model Selection
-    model_name = st.text_input("Gemini Model Name", value="gemini-1.5-pro", help="Try 'gemini-1.5-flash' or 'gemini-pro' if 1.5 Pro fails.")
+    model_name = st.selectbox(
+        "Gemini Model", 
+        ["gemini-1.5-pro", "gemini-1.5-pro-001", "gemini-1.5-pro-002", "gemini-1.5-flash", "gemini-pro"],
+        index=0,
+        help="Select the model version. try '001' or 'flash' if the default fails."
+    )
     
     # Debugging: List Models
     with st.expander("🛠️ Check Available Models"):
