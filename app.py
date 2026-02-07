@@ -20,13 +20,30 @@ with st.sidebar:
     
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
+
+    # Model Selection
+    model_name = st.text_input("Gemini Model Name", value="gemini-1.5-pro", help="Try 'gemini-1.5-flash' or 'gemini-pro' if 1.5 Pro fails.")
+    
+    # Debugging: List Models
+    with st.expander("🛠️ Check Available Models"):
+        if st.button("List Models"):
+            if api_key:
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    st.write(models)
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            else:
+                st.warning("Please enter API Key first.")
     
     st.info("Data Sources:\n- Quotes: Tencent Finance (Real-time)\n- Macro: AkShare (Daily/Monthly)\n- Analysis: Gemini 3 Pro")
 
 @st.cache_data(ttl=60) # Cache for 60 seconds for real-time feel
-def get_analysis(key=None):
+def get_analysis(key=None, model="gemini-1.5-pro"):
     # Pass key to analyzer
-    analyzer = MarketAnalyzer(api_key=key)
+    analyzer = MarketAnalyzer(api_key=key, model_name=model)
     return analyzer.analyze_market_status()
 
 def main():
@@ -35,7 +52,10 @@ def main():
     
     with st.spinner("正在拉取实时数据并进行AI分析..."):
         # Use session state to store key if needed, or just pass from sidebar
-        data = get_analysis(api_key if 'api_key' in locals() and api_key else None)
+        data = get_analysis(
+            key=api_key if 'api_key' in locals() and api_key else None, 
+            model=model_name if 'model_name' in locals() and model_name else "gemini-1.5-pro"
+        )
         
     if "error" in data:
         st.error(data["error"])

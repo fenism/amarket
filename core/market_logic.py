@@ -5,10 +5,10 @@ from core import indicators
 import pandas as pd
 
 class MarketAnalyzer:
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, model_name='gemini-1.5-pro'):
         self.loader = TencentLoader()
         self.macro_loader = MacroLoader()
-        self.ai = GeminiAnalyst(api_key=api_key)
+        self.ai = GeminiAnalyst(api_key=api_key, model_name=model_name)
         
     def analyze_market_status(self):
         """

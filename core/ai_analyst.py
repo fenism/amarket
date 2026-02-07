@@ -2,13 +2,22 @@ import google.generativeai as genai
 import os
 
 class GeminiAnalyst:
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, model_name='gemini-1.5-pro'):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         if self.api_key:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-pro')
+            self.model = genai.GenerativeModel(model_name)
         else:
             self.model = None
+
+    def list_models(self):
+        """List available models for the configured API key."""
+        if not self.api_key:
+            return ["API Key not set"]
+        try:
+            return [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        except Exception as e:
+            return [f"Error listing models: {str(e)}"]
 
     def analyze_market(self, context_data):
         """
