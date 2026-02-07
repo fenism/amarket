@@ -40,7 +40,7 @@ def main():
         # Use session state to store key if needed, or just pass from sidebar
         data = get_analysis(
             key=api_key if 'api_key' in locals() and api_key else None, 
-            model=model_name if 'model_name' in locals() and model_name else "gemini-1.5-pro"
+            model=model_name if 'model_name' in locals() and model_name else "gemini-3-pro-preview"
         )
         
     if "error" in data:

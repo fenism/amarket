@@ -2,7 +2,7 @@ import google.generativeai as genai
 import os
 
 class GeminiAnalyst:
-    def __init__(self, api_key=None, model_name='gemini-1.5-pro'):
+    def __init__(self, api_key=None, model_name='gemini-3-pro-preview'):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         if self.api_key:
             genai.configure(api_key=self.api_key)
