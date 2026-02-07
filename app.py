@@ -90,6 +90,7 @@ def main():
         st.info("**资金与情绪**", icon="🌊")
         i_cols = st.columns(3)
         for i, (key, info) in enumerate(data["boards"].items()):
+            if "error" in info: continue
             # Funding
             fund = info['funding']
             i_cols[i].metric(info['name'], fund['status'], f"Vol: {fund['value']/10000:.0f}万手")
@@ -98,6 +99,7 @@ def main():
         st.info("**恐慌与时机**", icon="⚡")
         i_cols = st.columns(3)
         for i, (key, info) in enumerate(data["boards"].items()):
+            if "error" in info: continue
             # Sentiment / Panic
             sent = info['sentiment']
             i_cols[i].metric(info['name'], sent['status'], f"Bias: {sent['score']:.2f}%", delta_color="inverse")
@@ -109,8 +111,14 @@ def main():
     
     # Chart Helper
     def plot_board_charts(chart_func):
-        b_tabs = st.tabs([b['name'] for b in data['boards'].values()])
-        for i, (key, info) in enumerate(data['boards'].items()):
+        # Only create tabs for valid boards
+        valid_boards = [info for key, info in data['boards'].items() if "error" not in info]
+        if not valid_boards:
+            st.warning("暂无有效市场数据")
+            return
+            
+        b_tabs = st.tabs([b['name'] for b in valid_boards])
+        for i, info in enumerate(valid_boards):
             with b_tabs[i]:
                 chart_func(info['data'], info)
 
