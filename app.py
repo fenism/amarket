@@ -21,32 +21,13 @@ with st.sidebar:
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
 
-    # Model Selection
-    model_name = st.selectbox(
-        "Gemini Model", 
-        ["gemini-3-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
-        index=0,
-        help="Select the model version. Your key supports 3-pro-preview and 2.5-pro."
-    )
-    
-    # Debugging: List Models
-    with st.expander("🛠️ Check Available Models"):
-        if st.button("List Models"):
-            if api_key:
-                try:
-                    import google.generativeai as genai
-                    genai.configure(api_key=api_key)
-                    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    st.write(models)
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("Please enter API Key first.")
+    # Model Selection: Hardcoded to Gemini 3 Pro as requested
+    model_name = "gemini-3-pro-preview"
     
     st.info("Data Sources:\n- Quotes: Tencent Finance (Real-time)\n- Macro: AkShare (Daily/Monthly)\n- Analysis: Gemini 3 Pro")
 
 @st.cache_data(ttl=60) # Cache for 60 seconds for real-time feel
-def get_analysis(key=None, model="gemini-1.5-pro"):
+def get_analysis(key=None, model="gemini-3-pro-preview"):
     # Pass key to analyzer
     analyzer = MarketAnalyzer(api_key=key, model_name=model)
     return analyzer.analyze_market_status()
