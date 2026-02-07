@@ -62,8 +62,6 @@ def main():
         return
         
     if "error" in data:
-        
-    if "error" in data:
         st.error(data["error"])
         return
 
