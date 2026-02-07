@@ -60,13 +60,24 @@ class MarketAnalyzer:
                 df = kline_df
                 latest_date = df.index[-1]
                 
-                # Use real-time price if available, else close
+                # Use real-time price if available and valid (market open), else fallback to K-line (market close)
+                # Logic: If RT volume is effectively 0 or price is 0, assume non-trading/pre-market -> use last close
                 current_price = df['close'].iloc[-1]
                 current_vol = df['volume'].iloc[-1]
+                
+                is_realtime_valid = False
                 if rt_row is not None and not rt_row.empty:
-                    current_price = float(rt_row.iloc[0]['close'])
-                    # Volume in k-line might be lagging, use rt if significant delta?
-                    # Keep k-line for consistency in indicators
+                    rt_price = float(rt_row.iloc[0]['close'])
+                    rt_vol = float(rt_row.iloc[0]['volume'])
+                    if rt_price > 0 and rt_vol > 0:
+                        current_price = rt_price
+                        current_vol = rt_vol # Note: RT vol is cumulative for the day
+                        is_realtime_valid = True
+                
+                # If falling back to K-line (non-trading), ensure we depend on the last completed day if today is not started
+                if not is_realtime_valid:
+                     # df is k-line. current_price is already set to df.iloc[-1]
+                     pass
                 
                 # --- Analysis ---
                 
