@@ -89,11 +89,16 @@ class TencentLoader:
             if not k_data:
                 return pd.DataFrame()
                 
-            # Tencent K-line format: [date, open, close, high, low, volume]
-            df = pd.DataFrame(k_data, columns=["date", "open", "close", "high", "low", "volume", "start_vol", "start_price", "end_price", "end_vol"])
+            # Tencent K-line format: [date, open, close, high, low, volume, ...others]
+            # Data might have 9 or 10 columns. We only need the first 6.
             
-            # Clean and type conversion
-            df = df[["date", "open", "close", "high", "low", "volume"]]
+            clean_data = []
+            for item in k_data:
+                # Ensure we have at least 6 columns
+                if len(item) >= 6:
+                    clean_data.append(item[:6])
+            
+            df = pd.DataFrame(clean_data, columns=["date", "open", "close", "high", "low", "volume"])
             df["date"] = pd.to_datetime(df["date"])
             
             for col in ["open", "close", "high", "low", "volume"]:

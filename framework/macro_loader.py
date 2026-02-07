@@ -17,23 +17,34 @@ class MacroLoader:
         """
         try:
             # AkShare interface for margin summary
-            # stock_margin_summary_sse/szse
-            df_sh = ak.stock_margin_summary_sse()
-            df_sz = ak.stock_margin_summary_szse()
-            
-            # Use the latest date common to both or max date
-            latest_sh = df_sh.iloc[-1]
-            latest_sz = df_sz.iloc[-1]
+            # Updated to match current API: stock_margin_sse / stock_margin_szse
+            try:
+                # SSE gives a range, so we get the latest valid trading day
+                df_sh = ak.stock_margin_sse(start_date="20240101", end_date=datetime.now().strftime("%Y%m%d"))
+                latest_sh = df_sh.iloc[-1]
+                val_sh = float(latest_sh['融资余额'])
+                # '信用交易日期' is usually YYYYMMDD (int or str)
+                date_val = str(latest_sh['信用交易日期'])
+                date_sh = f"{date_val[:4]}-{date_val[4:6]}-{date_val[6:]}"
+            except:
+                val_sh = 0
+                date_sh = "N/A"
+                date_val = datetime.now().strftime("%Y%m%d")
+
+            try:
+                # Use the valid date from SSE to query SZSE
+                df_sz = ak.stock_margin_szse(date=date_val) 
+                val_sz = float(df_sz['融资余额（元）'].sum())
+            except:
+                 val_sz = 0
             
             # Combine SH + SZ
-            # Fields vary slightly by source version, usually '融资余额' (Financing Balance)
-            total_margin = float(latest_sh['融资余额']) + float(latest_sz['融资余额'])
-            # Net buy is difference or just use balance trend
+            total_margin = val_sh + val_sz
             
             return {
-                "date": str(latest_sh['信用交易日期']),
+                "date": date_sh,
                 "margin_balance": total_margin / 1e8, # Convert to Billion
-                "details": f"SH: {latest_sh['融资余额']} + SZ: {latest_sz['融资余额']}"
+                "details": f"SH: {val_sh/1e8:.2f} + SZ: {val_sz/1e8:.2f}"
             }
         except Exception as e:
             print(f"Error fetching margin data: {e}")
@@ -42,25 +53,26 @@ class MacroLoader:
     def fetch_money_supply(self):
         """
         Fetch M1/M2 data directly.
-        Returns: {
-            "date": "2023-12",
-            "m1_yoy": 1.3,
-            "m2_yoy": 9.7,
-            "scissors": -8.4
-        }
         """
         try:
             df = ak.macro_china_money_supply()
-            # Columns: 统计时间, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
-            latest = df.iloc[0] # Usually sorted descending? Check documentation usage or sort
-            
+            # Columns: 月份, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
             # Ensure sorting by date descending
-            df['统计时间'] = pd.to_datetime(df['统计时间'], format='%Y.%m')
-            df.sort_values('统计时间', ascending=False, inplace=True)
+            # 月份 format usually "2023.12" or "2023.12"
+            df['月份'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
+            df.sort_values('月份', ascending=False, inplace=True)
             latest = df.iloc[0]
             
+            # Correct column names with dashes
             m1_yoy = float(latest['货币(M1)-同比增长'])
             m2_yoy = float(latest['货币和准货币(M2)-同比增长'])
+            
+            return {
+                "date": latest['月份'].strftime('%Y-%m'),
+                "m1_yoy": m1_yoy,
+                "m2_yoy": m2_yoy,
+                "scissors": m1_yoy - m2_yoy
+            }
             
             return {
                 "date": latest['统计时间'].strftime('%Y-%m'),
