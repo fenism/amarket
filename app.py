@@ -11,60 +11,66 @@ st.set_page_config(page_title="Macro Market Dashboard (Real-time + AI)", layout=
 with st.sidebar:
     st.header("⚙️ Settings")
     
-    # Try to get from secrets first, or use hardcoded default
-    default_key = "AIzaSyBFFdNvXdN5D92KHGIljf49fWmw_SKEfMU"
+    # Try to get from secrets first
     if "GEMINI_API_KEY" in st.secrets:
         api_key = st.secrets["GEMINI_API_KEY"]
         st.success("API Key loaded from Secrets")
     else:
-        api_key = st.text_input("Gemini API Key", value=default_key, type="password")
+        api_key = st.text_input("Gemini API Key", type="password", help="Enter your Google Gemini API Key for smart analysis.")
     
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
 
-    # Fixed Model Selection (Hidden/Defaulted to user preference)
-    # User requested "Gemini 3 Pro" -> gemini-3-pro-preview based on debug
-    model_name = "gemini-3-pro-preview" 
-    st.caption(f"🤖 Model: {model_name}")
+    # Model Selection
+    model_name = st.selectbox(
+        "Gemini Model", 
+        ["gemini-3-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
+        index=0,
+        help="Select the model version. Your key supports 3-pro-preview and 2.5-pro."
+    )
+    
+    # Debugging: List Models
+    with st.expander("🛠️ Check Available Models"):
+        if st.button("List Models"):
+            if api_key:
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    st.write(models)
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            else:
+                st.warning("Please enter API Key first.")
     
     st.info("Data Sources:\n- Quotes: Tencent Finance (Real-time)\n- Macro: AkShare (Daily/Monthly)\n- Analysis: Gemini 3 Pro")
 
-# @st.cache_data(ttl=60) # Disable cache for debugging
-def get_market_data():
-    # Only fetch data, no AI
-    try:
-        analyzer = MarketAnalyzer(api_key=None) 
-        return analyzer.analyze_market_status()
-    except Exception as e:
-        return {"error": f"MarketAnalyzer Init Failed: {str(e)}"}
-
-def get_ai_insight(context_data, key, model):
-    if not key: return "Please provide API Key."
+@st.cache_data(ttl=60) # Cache for 60 seconds for real-time feel
+def get_analysis(key=None, model="gemini-1.5-pro"):
+    # Pass key to analyzer
     analyzer = MarketAnalyzer(api_key=key, model_name=model)
-    return analyzer.ai.analyze_market(context_data)
+    return analyzer.analyze_market_status()
 
 def main():
-    st.write("Debug: App initializing...") # Debug line
     st.title("🛡️ A股宏观战法看板 (Live)")
-    st.write("Debug: Title rendered.") # Debug line
+    st.markdown("### 💡 智能宏观点评 (AI Insight)")
     
-    data = {}
-    # Removed spinner to see if it blocks
-    st.write("Debug: Fetching data...")
-    try:
-        data = get_market_data()
-        st.write("Debug: Data fetched.") # Debug line
-    except Exception as e:
-        st.error(f"Critical Data Fetch Error: {e}")
-        return
-        
-    if not data:
-        st.error("Error: get_market_data returned None or empty.")
-        return
+    with st.spinner("正在拉取实时数据并进行AI分析..."):
+        # Use session state to store key if needed, or just pass from sidebar
+        data = get_analysis(
+            key=api_key if 'api_key' in locals() and api_key else None, 
+            model=model_name if 'model_name' in locals() and model_name else "gemini-1.5-pro"
+        )
         
     if "error" in data:
         st.error(data["error"])
         return
+
+    # AI Section
+    if "ai_commentary" in data:
+        st.success(data["ai_commentary"], icon="🤖")
+
+    st.divider()
 
     # Macro & Liquidity Section
     st.subheader("1. 宏观流动性 (Liquidity)")
@@ -173,22 +179,5 @@ def main():
         else:
             st.write("数据不足")
 
-    st.divider()
-    st.markdown("### 💡 智能宏观点评 (AI Insight)")
-    
-    # AI Analysis Button
-    if st.button("🤖 开始AI智能分析 (Start AI Analysis)", type="primary"):
-        with st.spinner(f"Gemini ({model_name}) 正在分析市场数据..."):
-             # Prepare context from data
-            sh_data = data["boards"].get("sh", {})
-            ai_context = {
-                "margin_balance": f"{macro.get('margin', {}).get('margin_balance', 0):.2f}B ({macro.get('margin', {}).get('date')})",
-                "m1_m2_scissors": f"{macro.get('money', {}).get('scissors', 0):.2f}% ({macro.get('money', {}).get('date')})",
-                "nhr": "N/A", 
-                "panic_index": sh_data.get("sentiment", {}).get("status", "N/A"),
-                "trend_status": sh_data.get("trend", {}).get("status", "N/A")
-            }
-            
-            # Call AI
-            commentary = get_ai_insight(ai_context, api_key, model_name)
-            st.success(commentary)
+if __name__ == "__main__":
+    main()

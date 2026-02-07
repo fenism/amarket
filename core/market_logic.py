@@ -155,9 +155,19 @@ class MarketAnalyzer:
             else:
                 style = {"error": "Insufficient data"}
 
-            # Step 6: AI Commentary - REMOVED from here
-            # Now handled on-demand in app.py to prevent blocking/hanging on load
-            ai_commentary = None 
+            # Step 6: AI Commentary
+            # Prepare context for AI
+            # Use Shanghai Index as the "Market" representative
+            sh_data = results.get("sh", {})
+            ai_context = {
+                "margin_balance": f"{margin_data.get('margin_balance', 0):.2f}B ({margin_data.get('date')})",
+                "m1_m2_scissors": f"{money_supply.get('scissors', 0):.2f}% ({money_supply.get('date')})",
+                "nhr": "N/A (Requires Full Market Scan)", # Placeholder
+                "panic_index": sh_data.get("sentiment", {}).get("status", "N/A"),
+                "trend_status": sh_data.get("trend", {}).get("status", "N/A")
+            }
+            
+            ai_commentary = self.ai.analyze_market(ai_context)
 
             return {
                 "date": latest_date,
