@@ -5,3 +5,5 @@ plotly
 numpy
 openpyxl
 altair<5
+akshare
+google-generativeai

@@ -1,46 +1,77 @@
-from framework.data_loader import BaostockLoader
+from framework.tencent_loader import TencentLoader
+from framework.macro_loader import MacroLoader
+from core.ai_analyst import GeminiAnalyst
 from core import indicators
 import pandas as pd
 
 class MarketAnalyzer:
-    def __init__(self):
-        self.loader = BaostockLoader()
+    def __init__(self, api_key=None):
+        self.loader = TencentLoader()
+        self.macro_loader = MacroLoader()
+        self.ai = GeminiAnalyst(api_key=api_key)
         
     def analyze_market_status(self):
         """
-        Main analysis function returning a dict of signal states for multiple boards.
+        Main analysis function returning a dict of signals and AI commentary.
         """
         try:
-            # Define boards to analyze
+            # Define boards (Tencent codes: sh000001=上证, sz399001=深证, sz399006=创业板)
             boards = {
-                "sh": {"code": "sh.000001", "name": "上证指数"},
-                "sz": {"code": "sz.399001", "name": "深证成指"},
-                "cyb": {"code": "sz.399006", "name": "创业板指"}
+                "sh": {"code": "sh000001", "name": "上证指数"},
+                "sz": {"code": "sz399001", "name": "深证成指"},
+                "cyb": {"code": "sz399006", "name": "创业板指"}
             }
             
             results = {}
             latest_date = None
             
-            # 1. Fetch Data & Analyze per board
+            # 1. Fetch Real-time Quotes Batch
+            codes = [b["code"] for b in boards.values()]
+            realtime_df = self.loader.fetch_realtime_quotes(codes)
+            
+            # 2. Fetch Macro Data (Liquidity)
+            margin_data = self.macro_loader.fetch_market_margin()
+            money_supply = self.macro_loader.fetch_money_supply()
+            
+            # 3. Analyze per board
             for key, info in boards.items():
-                df = self.loader.fetch_index_data(info["code"], days=400)
+                code = info["code"]
                 
-                if df.empty:
-                    results[key] = {"error": "Failed to fetch data"}
+                # A. Real-time Snapshot
+                if realtime_df.empty:
+                    rt_row = None
+                else:
+                    rt_row = realtime_df[realtime_df['code'] == code.replace("sh","").replace("sz","")]
+                    if rt_row.empty: 
+                         # Try full match if replace didn't work (though loader handles this)
+                         rt_row = realtime_df[realtime_df['code'] == code]
+                
+                # B. Historical K-Line (for EMA200)
+                kline_df = self.loader.fetch_k_line(code, day_count=400)
+                
+                if kline_df.empty:
+                    results[key] = {"error": "Failed to fetch k-line data"}
                     continue
-                    
-                # Ensure date index
-                df['date'] = pd.to_datetime(df['date'])
-                df.set_index('date', inplace=True)
                 
-                if latest_date is None or df.index[-1] > latest_date:
-                    latest_date = df.index[-1]
-                    
-                # --- Per Board Analysis ---
+                # Append real-time price to k-line for latest indicator calc? 
+                # Ideally yes, but for simplicity we rely on k-line end + real-time quote deviation
+                # Actually, Tencent k-line usually includes today's partial candle if market is open.
                 
-                # Step 1: Funding (Water) - Volume
-                vol_ma20 = df['volume'].rolling(20).mean()
+                df = kline_df
+                latest_date = df.index[-1]
+                
+                # Use real-time price if available, else close
+                current_price = df['close'].iloc[-1]
                 current_vol = df['volume'].iloc[-1]
+                if rt_row is not None and not rt_row.empty:
+                    current_price = float(rt_row.iloc[0]['close'])
+                    # Volume in k-line might be lagging, use rt if significant delta?
+                    # Keep k-line for consistency in indicators
+                
+                # --- Analysis ---
+                
+                # Step 1: Funding (Water)
+                vol_ma20 = df['volume'].rolling(20).mean()
                 funding = {
                     "value": current_vol,
                     "ma20": vol_ma20.iloc[-1],
@@ -48,21 +79,29 @@ class MarketAnalyzer:
                     "description": "成交量 vs 20日均量"
                 }
                 
-                # Step 2: Sentiment (Temp) - Bias MA20
+                # Step 2: Sentiment (NHR/Bias)
+                # NHR requires scanning all stocks, which is heavy. 
+                # Proxy: Use Bias as "Overheat/Panic" gauge for the index itself.
                 price_ma20 = df['close'].rolling(20).mean()
-                bias_20 = (df['close'] - price_ma20) / price_ma20 * 100
-                score = bias_20.iloc[-1]
-                sentiment_status = "过热" if score > 5 else ("冰点" if score < -5 else "中性")
-                sentiment = {
-                    "score": score,
-                    "status": sentiment_status,
-                    "description": "乖离率 (20日线)"
-                }
+                bias_20 = (current_price - price_ma20.iloc[-1]) / price_ma20.iloc[-1] * 100
                 
-                # Step 3: Trend (Direction) - EMA200
+                # Panic Index Proxy: If drop > 3% in a day or bias < -5
+                panic_score = 0
+                pct_chg = df['pctChg'].iloc[-1]
+                if pct_chg < -3: panic_score += 50
+                if bias_20 < -5: panic_score += 40
+                
+                sentiment_status = "过热" if bias_20 > 5 else ("极度恐慌" if bias_20 < -7 else ("恐慌" if bias_20 < -5 else "中性"))
+                sentiment = {
+                    "score": bias_20,
+                    "panic_score": panic_score, # Proxy for "Panic Index"
+                    "status": sentiment_status,
+                    "description": "乖离率 & 暴跌"
+                }
+
+                # Step 3: Trend (EMA200) - The "Red Line"
                 ema200 = indicators.calculate_ema(df['close'], span=200)
-                current_price = df['close'].iloc[-1]
-                trend_status = "牛市" if current_price > ema200.iloc[-1] else "熊市"
+                trend_status = "牛市 (做多)" if current_price > ema200.iloc[-1] else "熊市 (防守)"
                 trend = {
                     "current_price": current_price,
                     "ema200": ema200.iloc[-1],
@@ -89,32 +128,45 @@ class MarketAnalyzer:
                     "timing": timing
                 }
 
-            # Step 5: Style (Relative Strength) - Global Calculation
-            # Usually Main (Shanghai) vs Growth (ChiNext)
-            if "sh" in results and "cyb" in results and "error" not in results["sh"] and "error" not in results["cyb"]:
+            # Step 5: Style (Relative Strength)
+            if "sh" in results and "cyb" in results:
                 df_sh = results["sh"]["data"]
                 df_cyb = results["cyb"]["data"]
-                
-                rs_line, rs_trend = indicators.calculate_relative_strength(df_cyb['close'], df_sh['close'])
+                rs_line, rs = indicators.calculate_relative_strength(df_cyb['close'], df_sh['close'])
                 current_rs = rs_line.iloc[-1]
                 prev_rs = rs_line.iloc[-2]
-                
-                direction = "成长/科技 (创业板)" if current_rs > prev_rs else "价值/蓝筹 (沪指)"
-                
                 style = {
-                    "rs_value": current_rs,
-                    "trend": "强化" if current_rs > prev_rs else "弱化",
-                    "suggestion": direction,
-                    "description": "创业板/沪指 相对强弱",
-                    "rs_line": rs_line
+                   "rs_value": current_rs,
+                   "trend": "强化" if current_rs > prev_rs else "弱化",
+                   "suggestion": "成长/科技 (创业板)" if current_rs > prev_rs else "价值/蓝筹 (沪指)",
+                   "rs_line": rs_line
                 }
             else:
                 style = {"error": "Insufficient data"}
-                
+
+            # Step 6: AI Commentary
+            # Prepare context for AI
+            # Use Shanghai Index as the "Market" representative
+            sh_data = results.get("sh", {})
+            ai_context = {
+                "margin_balance": f"{margin_data.get('margin_balance', 0):.2f}B ({margin_data.get('date')})",
+                "m1_m2_scissors": f"{money_supply.get('scissors', 0):.2f}% ({money_supply.get('date')})",
+                "nhr": "N/A (Requires Full Market Scan)", # Placeholder
+                "panic_index": sh_data.get("sentiment", {}).get("status", "N/A"),
+                "trend_status": sh_data.get("trend", {}).get("status", "N/A")
+            }
+            
+            ai_commentary = self.ai.analyze_market(ai_context)
+
             return {
                 "date": latest_date,
                 "boards": results,
-                "style": style
+                "style": style,
+                "macro": {
+                    "margin": margin_data,
+                    "money": money_supply
+                },
+                "ai_commentary": ai_commentary
             }
         except Exception as e:
             return {"error": f"Analysis failed: {str(e)}", "boards": {}, "style": {}}
