@@ -29,11 +29,14 @@ with st.sidebar:
     
     st.info("Data Sources:\n- Quotes: Tencent Finance (Real-time)\n- Macro: AkShare (Daily/Monthly)\n- Analysis: Gemini 3 Pro")
 
-@st.cache_data(ttl=60) # Cache data fetching
+# @st.cache_data(ttl=60) # Disable cache for debugging
 def get_market_data():
     # Only fetch data, no AI
-    analyzer = MarketAnalyzer(api_key=None) # Key not needed for data
-    return analyzer.analyze_market_status()
+    try:
+        analyzer = MarketAnalyzer(api_key=None) 
+        return analyzer.analyze_market_status()
+    except Exception as e:
+        return {"error": f"MarketAnalyzer Init Failed: {str(e)}"}
 
 def get_ai_insight(context_data, key, model):
     if not key: return "Please provide API Key."
@@ -41,10 +44,24 @@ def get_ai_insight(context_data, key, model):
     return analyzer.ai.analyze_market(context_data)
 
 def main():
+    st.write("Debug: App initializing...") # Debug line
     st.title("🛡️ A股宏观战法看板 (Live)")
+    st.write("Debug: Title rendered.") # Debug line
     
+    data = {}
     with st.spinner("正在拉取实时数据..."):
-        data = get_market_data()
+        try:
+            data = get_market_data()
+            st.write("Debug: Data fetched.") # Debug line
+        except Exception as e:
+            st.error(f"Critical Data Fetch Error: {e}")
+            return
+        
+    if not data:
+        st.error("Error: get_market_data returned None or empty.")
+        return
+        
+    if "error" in data:
         
     if "error" in data:
         st.error(data["error"])
