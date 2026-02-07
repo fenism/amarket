@@ -28,30 +28,30 @@ class GeminiAnalyst:
             return "Please configure Gemini API Key in the sidebar to enable AI analysis."
 
         prompt = f"""
-        You are a professional macro-quant trader. Analyze the following China A-share market data and provide a brief evaluation.
+        你是一位专业的宏观量化交易员。请根据依然下A股市场数据进行宏观点评。
         
-        **Objective**: Determine if the market is safe for trading (avoid "catching falling knives") based on the following framework:
+        **分析目标**：判断当前市场是否适合开仓交易（避免在“泥沙俱下”时接飞刀）。请严格遵循以下分析框架：
         
-        1. **Liquidity (Funding)**: 
-           - Margin Balance: {context_data.get('margin_balance', 'N/A')}
-           - Money Supply (M1-M2 Scissors): {context_data.get('m1_m2_scissors', 'N/A')}
-           - *Interpretation*: Rising margin balance = Retail entering (Overheat risk). Widening negative scissors = Liquidity Trap.
+        1. **宏观流动性监测 (Liquidity Matrix)**：
+           - **融资余额**：{context_data.get('margin_balance', 'N/A')}
+           - **M1/M2 剪刀差**：{context_data.get('m1_m2_scissors', 'N/A')}
+           - *判断逻辑*：融资余额快速上升=散户过热风险；剪刀差负值扩大=流动性陷阱。
            
-        2. **Sentiment (Panic)**:
-           - NHR (New High/Low Ratio): {context_data.get('nhr', 'N/A')}
-           - Panic Index (Decline Count Ratio): {context_data.get('panic_index', 'N/A')}
-           - *Interpretation*: Panic Index > 80% = Extreme Fear (Short-term bounce likely). NHR Low = Bearish.
+        2. **市场情绪 (Sentiment)**：
+           - **NHR (新高/新低)**：{context_data.get('nhr', 'N/A')}
+           - **恐慌指数 (下跌家数占比)**：{context_data.get('panic_index', 'N/A')}
+           - *判断逻辑*：NHR低且新低占比>20%=底部恐慌；恐慌指数>80%=人性极值（短线博弈点）。
            
-        3. **Trend (Technical)**:
-           - Index vs EMA200: {context_data.get('trend_status', 'N/A')}
-           - *Interpretation*: Below EMA200 = Bear Market (Defensive/Short). Above = Bull Market (Long).
+        3. **牛熊分界线 (Trend)**：
+           - **指数 vs EMA200**：{context_data.get('trend_status', 'N/A')}
+           - *判断逻辑*：EMA200之上=做多安全区；EMA200之下=空仓/超跌反弹区（不可逾越的红线）。
 
-        **Output Format**:
-        - **Verdict**: [Safe to Trade / Wait & See / Catch Knife Opportunity]
-        - **Analysis**: 2-3 sentences explaining the verdict using the data above.
-        - **Risk Warning**: 1 sentence on the biggest current risk.
+        **输出格式要求**：
+        - **核心结论 (Verdict)**：[安全开仓 / 观望等待 / 接飞刀博弈]
+        - **逻辑分析**：用2-3句话串联上述数据解释结论。
+        - **风险提示**：一句话指出当前最大的风险点。
         
-        Keep it concise and professional.
+        请用中文回答，风格专业、犀利。
         """
         
         try:
