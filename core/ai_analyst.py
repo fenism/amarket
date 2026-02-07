@@ -58,4 +58,7 @@ class GeminiAnalyst:
             response = self.model.generate_content(prompt)
             return response.text
         except Exception as e:
-            return f"AI Analysis failed: {str(e)}"
+            error_msg = str(e)
+            if "403" in error_msg or "leaked" in error_msg.lower():
+                return "🚨 **Security Alert**: Your API Key was reported as leaked/invalid by Google. Please generate a NEW key at [Google AI Studio](https://aistudio.google.com/) and update your Streamlit Secrets."
+            return f"AI Analysis failed: {error_msg}"
