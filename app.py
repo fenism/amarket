@@ -133,7 +133,7 @@ def main():
             # Sentiment / Panic
             sent = info['sentiment']
             i_cols[i].metric(info['name'], sent['status'], f"Bias: {sent['score']:.2f}%", delta_color="inverse")
-
+        st.caption("注：Bias (乖离率) = (当前价 - MA20)/MA20。>5%为过热(风险)，<-5%为恐慌(机会)。")
     st.divider()
     
     # --- Detailed Charts ---
