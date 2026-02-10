@@ -222,7 +222,7 @@ def main():
     with tab3:
         if "error" not in data['style']:
             style = data['style']
-            st.metric("当前主线", style['suggestion'], f"趋势: {style['trend']}")
+            st.metric("当前主线", style['suggestion'], f"趋势: {style['trend']}", delta_color="inverse")
             rs = style['rs_line']
             fig_style = px.line(x=rs.index, y=rs, labels={'x': '日期', 'y': '相对强弱 (创业板/沪指)'})
             st.plotly_chart(fig_style, use_container_width=True)

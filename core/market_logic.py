@@ -146,11 +146,16 @@ class MarketAnalyzer:
                 rs_line, rs = indicators.calculate_relative_strength(df_cyb['close'], df_sh['close'])
                 current_rs = rs_line.iloc[-1]
                 prev_rs = rs_line.iloc[-2]
+                
+                # Logic: Suggested style is the one gaining relative strength
+                is_growth_stronger = current_rs > prev_rs
+                
                 style = {
                    "rs_value": current_rs,
-                   "trend": "强化" if current_rs > prev_rs else "弱化",
-                   "suggestion": "成长/科技 (创业板)" if current_rs > prev_rs else "价值/蓝筹 (沪指)",
-                   "rs_line": rs_line
+                   "trend": "强化", # The suggested style is always the one strengthening in momentum
+                   "suggestion": "成长/科技 (创业板)" if is_growth_stronger else "价值/蓝筹 (沪指)",
+                   "rs_line": rs_line,
+                   "is_growth": is_growth_stronger
                 }
             else:
                 style = {"error": "Insufficient data"}
