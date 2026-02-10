@@ -59,6 +59,29 @@ def main():
     m_col1, m_col2 = st.columns(2)
     with m_col1:
         st.metric("两融余额 (Margin Balance)", f"{macro.get('margin', {}).get('margin_balance', 0):.2f}亿", help="融资+融券余额，代表杠杆资金情绪")
+        
+        # Margin History Chart
+        margin_hist = macro.get('margin', {}).get('history', None)
+        if margin_hist is not None and not margin_hist.empty:
+            # margin_hist has 'date' and 'total_balance' (in Yuan)
+            # Convert to Billion for display consistent with metric
+            df_chart = margin_hist.copy()
+            df_chart['date'] = pd.to_datetime(df_chart['date'])
+            df_chart['DisplayBalance'] = df_chart['total_balance'] / 1e8
+            
+            fig_margin = px.area(df_chart, x='date', y='DisplayBalance', 
+                                 title="两融余额趋势 (近1年)", 
+                                 labels={'DisplayBalance': '余额 (亿)', 'date': '日期'},
+                                 height=300)
+            
+            # Add Threshold Line at 20000 (2 Trillion)
+            fig_margin.add_hline(y=20000, line_dash="dash", line_color="red", 
+                                 annotation_text="2万亿警戒线", annotation_position="top right")
+            
+            # Customize layout
+            fig_margin.update_layout(margin=dict(l=0, r=0, t=30, b=0), hovermode="x unified")
+            st.plotly_chart(fig_margin, use_container_width=True)
+
     with m_col2:
         cutoff = macro.get('money', {}).get('scissors', 0)
         st.metric("M1-M2 剪刀差", f"{cutoff:.2f}%", delta_color="normal" if cutoff > 0 else "inverse", help="M1同比 - M2同比。负值扩大代表流动性陷阱。")
