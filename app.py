@@ -156,11 +156,31 @@ def main():
         st.caption("蓝色线为EMA200牛熊分界线。线上做多，线下防守。")
         def chart_trend(df, info):
             fig = go.Figure()
-            fig.add_trace(go.Candlestick(x=df.index,
+            # Convert index to string to avoid gap rendering issues if type=category doesn't work perfectly with datetimes
+            # But usually type='category' is enough. 
+            # To ensure clean labels, we can filter ticks.
+            
+            # Colors: Red Up, Green Down (A-Share style)
+            fig.add_trace(go.Candlestick(x=df.index.strftime('%Y-%m-%d'), # Use string dates for categorical axis
                             open=df['open'], high=df['high'],
-                            low=df['low'], close=df['close'], name='K线'))
-            fig.add_trace(go.Scatter(x=df.index, y=df['close'].ewm(span=200, adjust=False).mean(), name='EMA200', line=dict(color='blue', width=2)))
-            fig.update_layout(xaxis_rangeslider_visible=False, height=400)
+                            low=df['low'], close=df['close'], name='K线',
+                            increasing_line_color='red', decreasing_line_color='green'))
+                            
+            fig.add_trace(go.Scatter(x=df.index.strftime('%Y-%m-%d'), 
+                                     y=df['close'].ewm(span=200, adjust=False).mean(), 
+                                     name='EMA200', 
+                                     line=dict(color='blue', width=2)))
+            
+            # Layout: Remove gaps using category axis
+            fig.update_layout(
+                xaxis_rangeslider_visible=False, 
+                height=400,
+                xaxis=dict(
+                    type='category', 
+                    nticks=10, # Avoid overcrowding labels
+                    tickangle=-45
+                )
+            )
             st.plotly_chart(fig, use_container_width=True)
         plot_board_charts(chart_trend)
         
