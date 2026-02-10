@@ -194,9 +194,28 @@ def main():
         st.caption("橙色线为20日均量线。")
         def chart_funding(df, info):
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=df.index, y=df['volume'], name='成交量', marker_color='teal'))
-            fig.add_trace(go.Scatter(x=df.index, y=df['volume'].rolling(20).mean(), name='MA20', line=dict(color='orange')))
-            fig.update_layout(height=300)
+            
+            # Volume Colors: Red if Close > Open, Green if Close <= Open
+            # Need to iterate or use vector logic. 
+            # Simple vector:
+            colors = ['red' if c > o else 'green' for c, o in zip(df['close'], df['open'])]
+            
+            fig.add_trace(go.Bar(x=df.index.strftime('%Y-%m-%d'), y=df['volume'], 
+                                 name='成交量', marker_color=colors))
+                                 
+            fig.add_trace(go.Scatter(x=df.index.strftime('%Y-%m-%d'), 
+                                     y=df['volume'].rolling(20).mean(), 
+                                     name='MA20', 
+                                     line=dict(color='orange', width=2)))
+                                     
+            fig.update_layout(
+                height=300,
+                xaxis=dict(
+                    type='category', 
+                    nticks=10, 
+                    tickangle=-45
+                )
+            )
             st.plotly_chart(fig, use_container_width=True)
         plot_board_charts(chart_funding)
         
