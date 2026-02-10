@@ -60,8 +60,8 @@ def main():
     with m_col1:
         st.metric("两融余额 (Margin Balance)", f"{macro.get('margin', {}).get('margin_balance', 0):.2f}亿", help="融资+融券余额，代表杠杆资金情绪")
     with m_col2:
-        cutoff = macro.get('money', {}).get('scissors', 0)
         st.metric("M1-M2 剪刀差", f"{cutoff:.2f}%", delta_color="normal" if cutoff > 0 else "inverse", help="M1同比 - M2同比。负值扩大代表流动性陷阱。")
+    st.caption("数据来源: 两融数据 (沪深交易所 via AkShare) / 货币供应 (中国人民银行 via AkShare)")
 
     st.divider()
 
