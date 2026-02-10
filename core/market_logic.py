@@ -75,9 +75,19 @@ class MarketAnalyzer:
                         is_realtime_valid = True
                 
                 # If falling back to K-line (non-trading), ensure we depend on the last completed day if today is not started
-                if not is_realtime_valid:
-                     # df is k-line. current_price is already set to df.iloc[-1]
-                     pass
+                
+                # --- PATCH REALTIME DATA ---
+                # To ensure Relative Strength and MA calculations use the LATEST price (Real-time),
+                # we must update the dataframe's last close price if we have valid real-time data.
+                if is_realtime_valid:
+                    # Check if K-line index matches today, or if we need to append?
+                    # Tencent K-line usually contains today.
+                    # We simply overwrite the last close with the accurate RT price.
+                    # This ensures indicators.calculate_relative_strength uses the RT price.
+                    df.at[df.index[-1], 'close'] = current_price
+                    df.at[df.index[-1], 'volume'] = current_vol # Optional, but good for volume indicators
+                
+                # ---------------------------
                 
                 # --- Analysis ---
                 
