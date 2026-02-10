@@ -101,8 +101,12 @@ def main():
         price = trend['current_price']
         ema = trend['ema200']
         
-        # Determine color by Trend
-        trend_color = "normal" if price > ema else "inverse"
+        # Determine color by Trend (A-Share: Red=Up/Bull, Green=Down/Bear)
+        # Streamlit 'inverse': Positive->Red, Negative->Green
+        # Streamlit 'normal': Positive->Green, Negative->Red
+        # Since our delta is a string, Streamlit usually treats it as positive unless it starts with -?
+        # Let's force it by switching mode based on status.
+        trend_color = "inverse" if price > ema else "normal"
         
         cols[i].metric(
             label=f"{info['name']}",
@@ -123,7 +127,9 @@ def main():
             if "error" in info: continue
             # Funding
             fund = info['funding']
-            i_cols[i].metric(info['name'], fund['status'], f"Vol: {fund['value']/10000:.0f}万手")
+            # Vol Up (放量) -> Red ('inverse'), Vol Down (缩量) -> Green ('normal')
+            fund_color = "inverse" if fund['status'] == "放量" else "normal"
+            i_cols[i].metric(info['name'], fund['status'], f"Vol: {fund['value']/10000:.0f}万手", delta_color=fund_color)
             
     with col2:
         st.info("**恐慌与时机**", icon="⚡")
