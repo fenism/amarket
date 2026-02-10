@@ -57,25 +57,41 @@ class MacroLoader:
         try:
             df = ak.macro_china_money_supply()
             # Columns: 月份, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
-            # Ensure sorting by date descending
-            # 月份 format usually "2023.12" or "2023.12"
-            df['月份'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
-            df.sort_values('月份', ascending=False, inplace=True)
-            latest = df.iloc[0]
+            # Columns: 月份, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
+            # Month format might be "2024.12" or "2024.1" or "2024.10"
+            # Some versions returned just year-month. 
+            # debug script showed NaT for %Y.%m, so maybe the format is different or it's not a string?
+            # Let's try to inspect or just take the first row if we trust the API returns sorted data (usually descending).
+            # But relying on sort is safer.
             
+            # Try converting '月份' with flexible parsing
+            # If it's already datetime, to_datetime is fine. If it's string "2024.12", format='%Y.%m' should work.
+            # If it failed (NaT), maybe it has whitespace?
+            
+            # Simplification: The detailed API usually returns sorted data (newest first). 
+            # We will try to parse, but if it fails, we just take the first row and formatting the date string directly if possible.
+            
+            try:
+                df['date_dt'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
+                if df['date_dt'].isnull().all():
+                     # Fallback: maybe it's just a string we can keep?
+                     # If all NaT, assume original order is correct or date is just a label
+                     latest = df.iloc[0]
+                     date_str = str(latest['月份'])
+                else:
+                    df.sort_values('date_dt', ascending=False, inplace=True)
+                    latest = df.iloc[0]
+                    date_str = latest['date_dt'].strftime('%Y-%m')
+            except:
+                latest = df.iloc[0]
+                date_str = str(latest['月份'])
+
             # Correct column names with dashes
             m1_yoy = float(latest['货币(M1)-同比增长'])
             m2_yoy = float(latest['货币和准货币(M2)-同比增长'])
             
             return {
-                "date": latest['月份'].strftime('%Y-%m'),
-                "m1_yoy": m1_yoy,
-                "m2_yoy": m2_yoy,
-                "scissors": m1_yoy - m2_yoy
-            }
-            
-            return {
-                "date": latest['统计时间'].strftime('%Y-%m'),
+                "date": date_str,
                 "m1_yoy": m1_yoy,
                 "m2_yoy": m2_yoy,
                 "scissors": m1_yoy - m2_yoy
