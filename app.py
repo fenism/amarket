@@ -109,7 +109,7 @@ def main():
             
             # Add background shading for zones (without text to avoid overlap)
             # Risk zone (scissors < -5%): Light red
-            fig_money.add_hrect(y0=-100, y1=-5, fillcolor="rgba(255,0,0,0.1)", 
+            fig_money.add_hrect(y0=-20, y1=-5, fillcolor="rgba(255,0,0,0.1)", 
                                layer="below", line_width=0)
             
             # Warning zone (-5% to 0%): Light yellow
@@ -117,7 +117,7 @@ def main():
                                layer="below", line_width=0)
             
             # Healthy zone (scissors > 0%): Light green
-            fig_money.add_hrect(y0=0, y1=100, fillcolor="rgba(0,255,0,0.1)", 
+            fig_money.add_hrect(y0=0, y1=20, fillcolor="rgba(0,255,0,0.1)", 
                                layer="below", line_width=0)
             
             # M1 YoY
@@ -152,11 +152,14 @@ def main():
                                annotation_text="-5% (警戒线)", annotation_position="right")
             
             fig_money.update_layout(
-                title="M1-M2 剪刀差趋势 (资金面健康度)",
+                title="M1-M2 剪刀差趋势 (资金面健康度) - 区域根据红色剪刀差线判断",
                 height=300,
                 margin=dict(l=0, r=0, t=30, b=0),
                 hovermode="x unified",
-                yaxis_title="%",
+                yaxis=dict(
+                    title="%",
+                    range=[-20, 20]  # Limit Y-axis range to reduce white space
+                ),
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
