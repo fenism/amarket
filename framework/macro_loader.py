@@ -41,15 +41,36 @@ class MacroLoader:
                 
                 # Filter last 365 days (convert start_date to naive datetime for comparison)
                 df_sz = df_sz_all[df_sz_all['date'] >= start_date.replace(tzinfo=None)].copy()
-                df_sz = df_sz[['date', 'sz_balance']].set_index('date')
+                df_sz = df_sz[['date', 'sz_balance']].set_index('date').sort_index()
             except Exception as e:
                 print(f"Error fetching SZSE history: {e}")
                 df_sz = pd.DataFrame()
 
             # Merge and Sum
             if not df_sh.empty and not df_sz.empty:
+                # Ensure SH is sorted too
+                df_sh = df_sh.sort_index()
+                
                 df_total = df_sh.join(df_sz, how='inner')
+                
+                # ADAPTIVE UNIT CORRECTION
+                # Standard SH balance is ~8e11 (800 Billion) in Yuan
+                # Standard SZ balance is ~7e11 (700 Billion) in Yuan
+                # Logic: Check magnitude of the latest SZ value
+                
+                latest_sz_raw = df_total['sz_balance'].iloc[-1]
+                
+                # If SZ is too small (e.g. 7e7 -> 70 Million), it's likely "Wan Yuan", needs * 10000
+                if latest_sz_raw < 1e9: 
+                    df_total['sz_balance'] = df_total['sz_balance'] * 10000
+                    
                 df_total['total_balance'] = df_total['sh_balance'] + df_total['sz_balance']
+                
+                # Final Sanity Check: If Total > 2.5 Trillion (2.5e12), something is wrong.
+                # Current market is roughly 1.5T - 1.9T.
+                if df_total['total_balance'].iloc[-1] > 2.5e12:
+                     print(f"Warning: Margin balance too high ({df_total['total_balance'].iloc[-1]}), likely unit error. Disabling history.")
+                     return self._fetch_margin_snapshot_fallback()
                 
                 # Latest Value
                 latest = df_total.iloc[-1]
