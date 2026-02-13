@@ -1,6 +1,7 @@
 import baostock as bs
 import pandas as pd
 from datetime import datetime, timedelta
+from framework.timezone_utils import get_beijing_now
 
 class BaostockLoader:
     def __init__(self):
@@ -66,7 +67,7 @@ class BaostockLoader:
         Standard stocks: sh.600000, sz.000001
         """
         if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
+            end_date = get_beijing_now().strftime('%Y-%m-%d')
         if not start_date:
             start_dt = datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=limit_days)
             start_date = start_dt.strftime('%Y-%m-%d')

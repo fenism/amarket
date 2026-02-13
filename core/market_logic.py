@@ -46,7 +46,7 @@ class MarketAnalyzer:
                          # Try full match if replace didn't work (though loader handles this)
                          rt_row = realtime_df[realtime_df['code'] == code]
                 
-                # B. Historical K-Line (for EMA200)
+                # B. Historical K-Line (for EMA200 - needs at least 200 days of data)
                 kline_df = self.loader.fetch_k_line(code, day_count=400)
                 
                 if kline_df.empty:

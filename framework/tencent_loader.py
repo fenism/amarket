@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from datetime import datetime
+from framework.timezone_utils import get_beijing_now
 
 class TencentLoader:
     def __init__(self):
@@ -58,7 +59,7 @@ class TencentLoader:
                     "pctChg": pct_chg,
                     "volume": volume,
                     "amount": amount,
-                    "timestamp": datetime.now() # Tencent doesn't always give full timestamp in simple string
+                    "timestamp": get_beijing_now() # Beijing timezone (UTC+8)
                 })
                 
             return pd.DataFrame(data_list)

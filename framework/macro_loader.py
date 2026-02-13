@@ -1,6 +1,7 @@
 import akshare as ak
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
+from framework.timezone_utils import get_beijing_now
 
 class MacroLoader:
     def __init__(self):
@@ -12,43 +13,92 @@ class MacroLoader:
         Returns: {
             "date": str (YYYY-MM-DD),
             "margin_balance": float (in Billion CNY),
-            "margin_net_buy": float (in Billion CNY)
+            "details": str
         }
         """
         try:
-            # AkShare interface for margin summary
-            # Updated to match current API: stock_margin_sse / stock_margin_szse
+            # 1. Fetch History for Trend (Last 365 Days)
+            end_date = get_beijing_now()
+            start_date = end_date - timedelta(days=365)
+            
+            # SSE History
             try:
-                # SSE gives a range, so we get the latest valid trading day
-                df_sh = ak.stock_margin_sse(start_date="20240101", end_date=datetime.now().strftime("%Y%m%d"))
-                latest_sh = df_sh.iloc[-1]
-                val_sh = float(latest_sh['融资余额'])
-                # '信用交易日期' is usually YYYYMMDD (int or str)
-                date_val = str(latest_sh['信用交易日期'])
-                date_sh = f"{date_val[:4]}-{date_val[4:6]}-{date_val[6:]}"
-            except:
-                val_sh = 0
-                date_sh = "N/A"
-                date_val = datetime.now().strftime("%Y%m%d")
+                df_sh = ak.stock_margin_sse(start_date=start_date.strftime("%Y%m%d"), end_date=end_date.strftime("%Y%m%d"))
+                # Columns: 信用交易日期, 融资余额, ...
+                df_sh['date'] = pd.to_datetime(df_sh['信用交易日期'], format='%Y%m%d')
+                df_sh['sh_balance'] = df_sh['融资余额'].astype(float)
+                df_sh = df_sh[['date', 'sh_balance']].set_index('date')
+            except Exception as e:
+                print(f"Error fetching SSE history: {e}")
+                df_sh = pd.DataFrame()
 
+            # SZSE History (macro_china_market_margin_sz returns all history)
             try:
-                # Use the valid date from SSE to query SZSE
-                df_sz = ak.stock_margin_szse(date=date_val) 
-                val_sz = float(df_sz['融资余额（元）'].sum())
-            except:
-                 val_sz = 0
-            
-            # Combine SH + SZ
-            total_margin = val_sh + val_sz
-            
+                df_sz_all = ak.macro_china_market_margin_sz()
+                # Columns: 日期, 融资余额, ...
+                df_sz_all['date'] = pd.to_datetime(df_sz_all['日期'])
+                df_sz_all['sz_balance'] = df_sz_all['融资余额'].astype(float)
+                
+                # Filter last 365 days (convert start_date to naive datetime for comparison)
+                df_sz = df_sz_all[df_sz_all['date'] >= start_date.replace(tzinfo=None)].copy()
+                df_sz = df_sz[['date', 'sz_balance']].set_index('date')
+            except Exception as e:
+                print(f"Error fetching SZSE history: {e}")
+                df_sz = pd.DataFrame()
+
+            # Merge and Sum
+            if not df_sh.empty and not df_sz.empty:
+                df_total = df_sh.join(df_sz, how='inner')
+                df_total['total_balance'] = df_total['sh_balance'] + df_total['sz_balance']
+                
+                # Latest Value
+                latest = df_total.iloc[-1]
+                latest_date = latest.name.strftime("%Y-%m-%d")
+                latest_val = latest['total_balance']
+                
+                # Convert history to simple list or dict for plotting
+                history_data = df_total['total_balance'].reset_index()
+                history_data['date'] = history_data['date'].dt.strftime('%Y-%m-%d')
+                
+            else:
+                # Fallback to single point if history fails
+                return self._fetch_margin_snapshot_fallback()
+
             return {
-                "date": date_sh,
-                "margin_balance": total_margin / 1e8, # Convert to Billion
-                "details": f"SH: {val_sh/1e8:.2f} + SZ: {val_sz/1e8:.2f}"
+                "date": latest_date,
+                "margin_balance": latest_val / 1e8, # Convert to Billion
+                "details": f"SH: {latest['sh_balance']/1e8:.2f} + SZ: {latest['sz_balance']/1e8:.2f}",
+                "history": history_data  # DataFrame with date, total_balance
             }
+
         except Exception as e:
             print(f"Error fetching margin data: {e}")
-            return {"date": "N/A", "margin_balance": 0, "error": str(e)}
+            return self._fetch_margin_snapshot_fallback()
+
+    def _fetch_margin_snapshot_fallback(self):
+        """Fallback to original snapshot method if history fails"""
+        try:
+            # Original logic...
+            # SSE gives a range, so we get the latest valid trading day
+            df_sh = ak.stock_margin_sse(start_date="20240101", end_date=get_beijing_now().strftime("%Y%m%d"))
+            latest_sh = df_sh.iloc[-1]
+            val_sh = float(latest_sh['融资余额'])
+            date_val = str(latest_sh['信用交易日期'])
+            date_sh = f"{date_val[:4]}-{date_val[4:6]}-{date_val[6:]}"
+            
+            df_sz = ak.stock_margin_szse(date=date_val) 
+            val_sz = float(df_sz['融资余额（元）'].sum())
+            
+            total_margin = val_sh + val_sz
+            return {
+                "date": date_sh,
+                "margin_balance": total_margin / 1e8,
+                "details": f"SH: {val_sh/1e8:.2f} + SZ: {val_sz/1e8:.2f}",
+                "history": None
+            }
+        except Exception as e:
+             return {"date": "N/A", "margin_balance": 0, "error": str(e), "history": None}
+
 
     def fetch_money_supply(self):
         """

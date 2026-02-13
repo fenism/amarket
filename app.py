@@ -26,7 +26,7 @@ with st.sidebar:
     
     st.info("Data Sources:\n- Quotes: Tencent Finance (Real-time)\n- Macro: AkShare (Daily/Monthly)\n- Analysis: Gemini 3 Pro")
 
-@st.cache_data(ttl=60) # Cache for 60 seconds for real-time feel
+@st.cache_data(ttl=10) # Cache for 10 seconds for near real-time updates
 def get_analysis(key=None, model="gemini-3-pro-preview"):
     # Pass key to analyzer
     analyzer = MarketAnalyzer(api_key=key, model_name=model)
@@ -89,7 +89,11 @@ def main():
 
     st.divider()
 
+    # Display last update time
+    from datetime import datetime
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     st.subheader(f"2. 市场全景 (Snapshot) - {data['date'].strftime('%Y-%m-%d %H:%M') if data['date'] else 'N/A'}")
+    st.caption(f"🔄 最后更新: {current_time} | 数据每10秒自动刷新")
     
     # Grid for Boards
     cols = st.columns(3)
@@ -191,29 +195,71 @@ def main():
         plot_board_charts(chart_trend)
         
     with tab2:
-        st.caption("橙色线为20日均量线。")
+        st.caption("橙色线为20日均量线。显示最近90日成交量。")
         def chart_funding(df, info):
+            # Filter to show only recent 90 days for better visualization
+            df_display = df.tail(90)
+            
+            # Debug: Show data info
+            if len(df_display) > 0:
+                st.info(f"📊 数据范围: {df_display.index.min().strftime('%Y-%m-%d')} 至 {df_display.index.max().strftime('%Y-%m-%d')} | 共 {len(df_display)} 个交易日")
+            else:
+                st.warning("⚠️ 无成交量数据")
+                return
+            
             fig = go.Figure()
             
             # Volume Colors: Red if Close > Open, Green if Close <= Open
             # Need to iterate or use vector logic. 
             # Simple vector:
-            colors = ['red' if c > o else 'green' for c, o in zip(df['close'], df['open'])]
+            colors = ['red' if c > o else 'green' for c, o in zip(df_display['close'], df_display['open'])]
             
-            fig.add_trace(go.Bar(x=df.index.strftime('%Y-%m-%d'), y=df['volume'], 
-                                 name='成交量', marker_color=colors))
+            # Convert dates to string for categorical axis
+            x_dates = df_display.index.strftime('%Y-%m-%d').tolist()
+            
+            fig.add_trace(go.Bar(
+                x=x_dates, 
+                y=df_display['volume'].tolist(), 
+                name='成交量', 
+                marker_color=colors,
+                hovertemplate='日期: %{x}<br>成交量: %{y:,.0f}<extra></extra>'
+            ))
                                  
-            fig.add_trace(go.Scatter(x=df.index.strftime('%Y-%m-%d'), 
-                                     y=df['volume'].rolling(20).mean(), 
-                                     name='MA20', 
-                                     line=dict(color='orange', width=2)))
+            # Calculate MA20
+            ma20_values = df_display['volume'].rolling(20).mean()
+            
+            fig.add_trace(go.Scatter(
+                x=x_dates, 
+                y=ma20_values.tolist(), 
+                name='MA20', 
+                line=dict(color='orange', width=2),
+                hovertemplate='日期: %{x}<br>MA20: %{y:,.0f}<extra></extra>'
+            ))
                                      
             fig.update_layout(
-                height=300,
+                height=350,
                 xaxis=dict(
-                    type='category', 
-                    nticks=10, 
-                    tickangle=-45
+                    type='category',
+                    showgrid=True,
+                    gridcolor='rgba(128,128,128,0.2)',
+                    tickangle=-45,
+                    # Show more ticks for better visibility
+                    nticks=15
+                ),
+                yaxis=dict(
+                    title='成交量',
+                    showgrid=True,
+                    gridcolor='rgba(128,128,128,0.2)'
+                ),
+                title=f"成交量 (最近90日: {df_display.index.min().strftime('%Y-%m-%d')} ~ {df_display.index.max().strftime('%Y-%m-%d')})",
+                hovermode='x unified',
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
                 )
             )
             st.plotly_chart(fig, use_container_width=True)
