@@ -85,6 +85,51 @@ def main():
     with m_col2:
         cutoff = macro.get('money', {}).get('scissors', 0)
         st.metric("M1-M2 剪刀差", f"{cutoff:.2f}%", delta_color="normal" if cutoff > 0 else "inverse", help="M1同比 - M2同比。负值扩大代表流动性陷阱。")
+        
+        # M1-M2 Scissors Historical Chart
+        money_hist = macro.get('money', {}).get('history', None)
+        if money_hist is not None and not money_hist.empty:
+            fig_money = go.Figure()
+            
+            # M1 YoY
+            fig_money.add_trace(go.Scatter(
+                x=money_hist['date'], 
+                y=money_hist['m1_yoy'],
+                name='M1同比%',
+                line=dict(color='blue', width=1.5)
+            ))
+            
+            # M2 YoY
+            fig_money.add_trace(go.Scatter(
+                x=money_hist['date'], 
+                y=money_hist['m2_yoy'],
+                name='M2同比%',
+                line=dict(color='green', width=1.5)
+            ))
+            
+            # Scissors (M1-M2)
+            fig_money.add_trace(go.Scatter(
+                x=money_hist['date'], 
+                y=money_hist['scissors'],
+                name='剪刀差 (M1-M2)',
+                line=dict(color='red', width=2),
+                fill='tozeroy'
+            ))
+            
+            # Add zero line
+            fig_money.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+            
+            fig_money.update_layout(
+                title="M1-M2 剪刀差趋势",
+                height=300,
+                margin=dict(l=0, r=0, t=30, b=0),
+                hovermode="x unified",
+                yaxis_title="%",
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            
+            st.plotly_chart(fig_money, use_container_width=True)
     st.caption("数据来源: 两融数据 (沪深交易所 via AkShare) / 货币供应 (中国人民银行 via AkShare)")
 
     st.divider()

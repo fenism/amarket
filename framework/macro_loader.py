@@ -129,50 +129,60 @@ class MacroLoader:
 
     def fetch_money_supply(self):
         """
-        Fetch M1/M2 data directly.
+        Fetch M1/M2 historical data for trend analysis.
+        Returns:
+            dict with keys: date (latest), m1_yoy, m2_yoy, scissors, history (DataFrame)
         """
         try:
             df = ak.macro_china_money_supply()
             # Columns: 月份, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
-            # Columns: 月份, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
-            # Month format might be "2024.12" or "2024.1" or "2024.10"
-            # Some versions returned just year-month. 
-            # debug script showed NaT for %Y.%m, so maybe the format is different or it's not a string?
-            # Let's try to inspect or just take the first row if we trust the API returns sorted data (usually descending).
-            # But relying on sort is safer.
             
-            # Try converting '月份' with flexible parsing
-            # If it's already datetime, to_datetime is fine. If it's string "2024.12", format='%Y.%m' should work.
-            # If it failed (NaT), maybe it has whitespace?
-            
-            # Simplification: The detailed API usually returns sorted data (newest first). 
-            # We will try to parse, but if it fails, we just take the first row and formatting the date string directly if possible.
-            
+            # Parse dates
             try:
-                df['date_dt'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
-                if df['date_dt'].isnull().all():
-                     # Fallback: maybe it's just a string we can keep?
-                     # If all NaT, assume original order is correct or date is just a label
-                     latest = df.iloc[0]
-                     date_str = str(latest['月份'])
-                else:
-                    df.sort_values('date_dt', ascending=False, inplace=True)
-                    latest = df.iloc[0]
-                    date_str = latest['date_dt'].strftime('%Y-%m')
-            except:
-                latest = df.iloc[0]
-                date_str = str(latest['月份'])
-
-            # Correct column names with dashes
-            m1_yoy = float(latest['货币(M1)-同比增长'])
-            m2_yoy = float(latest['货币和准货币(M2)-同比增长'])
+                df['date'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
+                # Drop rows with invalid dates
+                df = df[df['date'].notna()].copy()
+                # Sort by date descending (newest first)
+                df = df.sort_values('date', ascending=False).reset_index(drop=True)
+            except Exception as e:
+                print(f"Error parsing money supply dates: {e}")
+                # Fallback: assume first row is latest
+                df = df.reset_index(drop=True)
+                df['date'] = df['月份'].astype(str)
+            
+            if df.empty:
+                return {"date": "N/A", "m1_yoy": 0, "m2_yoy": 0, "scissors": 0, "history": None}
+            
+            # Extract M1, M2 YoY growth rates
+            df['m1_yoy'] = df['货币(M1)-同比增长'].astype(float)
+            df['m2_yoy'] = df['货币和准货币(M2)-同比增长'].astype(float)
+            df['scissors'] = df['m1_yoy'] - df['m2_yoy']
+            
+            # Latest value (first row after DESC sort)
+            latest = df.iloc[0]
+            if isinstance(latest['date'], pd.Timestamp):
+                date_str = latest['date'].strftime('%Y-%m')
+            else:
+                date_str = str(latest['date'])
+            
+            m1_yoy = float(latest['m1_yoy'])
+            m2_yoy = float(latest['m2_yoy'])
+            scissors = float(latest['scissors'])
+            
+            # Prepare history for charting (reverse to ascending for plotly)
+            history = df[['date', 'm1_yoy', 'm2_yoy', 'scissors']].sort_values('date', ascending=True).copy()
+            if isinstance(history['date'].iloc[0], pd.Timestamp):
+                history['date'] = history['date'].dt.strftime('%Y-%m')
+            else:
+                history['date'] = history['date'].astype(str)
             
             return {
                 "date": date_str,
                 "m1_yoy": m1_yoy,
                 "m2_yoy": m2_yoy,
-                "scissors": m1_yoy - m2_yoy
+                "scissors": scissors,
+                "history": history
             }
         except Exception as e:
             print(f"Error fetching money supply: {e}")
-            return {"date": "N/A", "m1_yoy": 0, "m2_yoy": 0, "scissors": 0}
+            return {"date": "N/A", "m1_yoy": 0, "m2_yoy": 0, "scissors": 0, "history": None}
