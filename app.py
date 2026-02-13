@@ -84,12 +84,44 @@ def main():
 
     with m_col2:
         cutoff = macro.get('money', {}).get('scissors', 0)
+        
+        # Determine market health status based on scissors gap
+        if cutoff > 0:
+            health_status = "✅ 健康区域"
+            health_color = "green"
+            health_desc = "M1>M2，资金活跃，市场健康"
+        elif cutoff > -5:
+            health_status = "⚠️ 观察区域"
+            health_color = "orange"
+            health_desc = "剪刀差收窄，关注流动性"
+        else:
+            health_status = "🚨 风险区域"
+            health_color = "red"
+            health_desc = "剪刀差倒挂，流动性陷阱风险"
+        
         st.metric("M1-M2 剪刀差", f"{cutoff:.2f}%", delta_color="normal" if cutoff > 0 else "inverse", help="M1同比 - M2同比。负值扩大代表流动性陷阱。")
+        st.markdown(f"**当前状态**: :{health_color}[{health_status}] - {health_desc}")
         
         # M1-M2 Scissors Historical Chart
         money_hist = macro.get('money', {}).get('history', None)
         if money_hist is not None and not money_hist.empty:
             fig_money = go.Figure()
+            
+            # Add background shading for zones
+            # Risk zone (scissors < -5%): Light red
+            fig_money.add_hrect(y0=-100, y1=-5, fillcolor="rgba(255,0,0,0.1)", 
+                               layer="below", line_width=0,
+                               annotation_text="风险区域", annotation_position="left")
+            
+            # Warning zone (-5% to 0%): Light yellow
+            fig_money.add_hrect(y0=-5, y1=0, fillcolor="rgba(255,255,0,0.1)", 
+                               layer="below", line_width=0,
+                               annotation_text="观察区域", annotation_position="left")
+            
+            # Healthy zone (scissors > 0%): Light green
+            fig_money.add_hrect(y0=0, y1=100, fillcolor="rgba(0,255,0,0.1)", 
+                               layer="below", line_width=0,
+                               annotation_text="健康区域", annotation_position="left")
             
             # M1 YoY
             fig_money.add_trace(go.Scatter(
@@ -116,11 +148,14 @@ def main():
                 fill='tozeroy'
             ))
             
-            # Add zero line
-            fig_money.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+            # Add threshold lines
+            fig_money.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.7,
+                               annotation_text="0% (健康线)", annotation_position="right")
+            fig_money.add_hline(y=-5, line_dash="dot", line_color="orange", opacity=0.7,
+                               annotation_text="-5% (警戒线)", annotation_position="right")
             
             fig_money.update_layout(
-                title="M1-M2 剪刀差趋势",
+                title="M1-M2 剪刀差趋势 (资金面健康度)",
                 height=300,
                 margin=dict(l=0, r=0, t=30, b=0),
                 hovermode="x unified",
