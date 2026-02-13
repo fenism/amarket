@@ -29,8 +29,28 @@ with st.sidebar:
     
     st.info("Data Sources:\n- Quotes: Tencent Finance (Real-time)\n- Macro: AkShare (Daily/Monthly)\n- Analysis: Gemini 3 Pro")
 
-@st.cache_data(ttl=10) # Cache for 10 seconds for near real-time updates
-def get_analysis(key=None, model="gemini-3-pro-preview"):
+def is_trading_hours():
+    """Check if current Beijing time is within trading hours"""
+    beijing_tz = pytz.timezone('Asia/Shanghai')
+    now = datetime.now(beijing_tz)
+    
+    # Weekend check
+    if now.weekday() >= 5:  # Saturday=5, Sunday=6
+        return False
+    
+    # Trading hours: 9:00-11:30, 13:00-15:00
+    current_time = now.time()
+    morning_start = datetime.strptime("09:00", "%H:%M").time()
+    morning_end = datetime.strptime("11:30", "%H:%M").time()
+    afternoon_start = datetime.strptime("13:00", "%H:%M").time()
+    afternoon_end = datetime.strptime("15:00", "%H:%M").time()
+    
+    return (morning_start <= current_time <= morning_end) or \
+           (afternoon_start <= current_time <= afternoon_end)
+
+@st.cache_data(ttl=10) # Cache for 10 seconds during trading hours
+def get_analysis(key=None, model="gemini-3-pro-preview", cache_key=None):
+    """Fetch market analysis. cache_key prevents updates outside trading hours."""
     # Pass key to analyzer
     analyzer = MarketAnalyzer(api_key=key, model_name=model)
     return analyzer.analyze_market_status()
@@ -40,10 +60,22 @@ def main():
     st.markdown("### 💡 智能宏观点评 (AI Insight)")
     
     with st.spinner("正在拉取实时数据并进行AI分析..."):
+        # Determine cache key based on trading hours
+        beijing_tz = pytz.timezone('Asia/Shanghai')
+        now = datetime.now(beijing_tz)
+        
+        if is_trading_hours():
+            # During trading hours: use timestamp to allow refresh every 10s
+            cache_key = now.strftime("%Y-%m-%d-%H-%M")
+        else:
+            # Outside trading hours: use date only (no intraday refresh)
+            cache_key = now.strftime("%Y-%m-%d-CLOSED")
+        
         # Use session state to store key if needed, or just pass from sidebar
         data = get_analysis(
             key=api_key if 'api_key' in locals() and api_key else None, 
-            model=model_name if 'model_name' in locals() and model_name else "gemini-3-pro-preview"
+            model=model_name if 'model_name' in locals() and model_name else "gemini-3-pro-preview",
+            cache_key=cache_key
         )
         
     if "error" in data:
@@ -172,11 +204,28 @@ def main():
 
     st.divider()
 
-    # Display last update time
+    # Display last update time with Beijing timezone
     beijing_tz = pytz.timezone('Asia/Shanghai')
     current_time = datetime.now(beijing_tz).strftime('%Y-%m-%d %H:%M:%S')
-    st.subheader(f"2. 市场全景 (Snapshot) - {data['date'].strftime('%Y-%m-%d %H:%M') if data['date'] else 'N/A'}")
-    st.caption(f"🔄 最后更新: {current_time} | 数据每10秒自动刷新")
+    
+    # Get snapshot date in Beijing time (if data['date'] exists)
+    if data.get('date'):
+        # Assuming data['date'] is already timezone-aware or needs conversion
+        snapshot_date = data['date']
+        if hasattr(snapshot_date, 'tzinfo') and snapshot_date.tzinfo is None:
+            # If naive, localize to Beijing
+            snapshot_date = beijing_tz.localize(snapshot_date)
+        snapshot_str = snapshot_date.strftime('%Y-%m-%d %H:%M')
+    else:
+        snapshot_str = 'N/A'
+    
+    st.subheader(f"2. 市场全景 (Snapshot) - {snapshot_str}")
+    
+    # Show trading status
+    if is_trading_hours():
+        st.caption(f"🔄 最后更新: {current_time} | ✅ 交易时间 - 数据每10秒自动刷新")
+    else:
+        st.caption(f"🔄 最后更新: {current_time} | ⏸️ 非交易时间 - 数据已暂停刷新")
     
     # Grid for Boards
     cols = st.columns(3)
