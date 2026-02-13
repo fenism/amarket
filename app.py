@@ -107,21 +107,18 @@ def main():
         if money_hist is not None and not money_hist.empty:
             fig_money = go.Figure()
             
-            # Add background shading for zones
+            # Add background shading for zones (without text to avoid overlap)
             # Risk zone (scissors < -5%): Light red
             fig_money.add_hrect(y0=-100, y1=-5, fillcolor="rgba(255,0,0,0.1)", 
-                               layer="below", line_width=0,
-                               annotation_text="风险区域", annotation_position="left")
+                               layer="below", line_width=0)
             
             # Warning zone (-5% to 0%): Light yellow
             fig_money.add_hrect(y0=-5, y1=0, fillcolor="rgba(255,255,0,0.1)", 
-                               layer="below", line_width=0,
-                               annotation_text="观察区域", annotation_position="left")
+                               layer="below", line_width=0)
             
             # Healthy zone (scissors > 0%): Light green
             fig_money.add_hrect(y0=0, y1=100, fillcolor="rgba(0,255,0,0.1)", 
-                               layer="below", line_width=0,
-                               annotation_text="健康区域", annotation_position="left")
+                               layer="below", line_width=0)
             
             # M1 YoY
             fig_money.add_trace(go.Scatter(
