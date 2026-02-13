@@ -66,12 +66,6 @@ class MacroLoader:
                     
                 df_total['total_balance'] = df_total['sh_balance'] + df_total['sz_balance']
                 
-                # Final Sanity Check: If Total > 2.5 Trillion (2.5e12), something is wrong.
-                # Current market is roughly 1.5T - 1.9T.
-                if df_total['total_balance'].iloc[-1] > 2.5e12:
-                     print(f"Warning: Margin balance too high ({df_total['total_balance'].iloc[-1]}), likely unit error. Disabling history.")
-                     return self._fetch_margin_snapshot_fallback()
-                
                 # Latest Value
                 latest = df_total.iloc[-1]
                 latest_date = latest.name.strftime("%Y-%m-%d")
