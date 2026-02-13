@@ -138,15 +138,17 @@ class MacroLoader:
             # Columns: 月份, 货币和准货币(M2)-同比增长, 货币(M1)-同比增长
             
             # Parse dates
-            try:
-                df['date'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
-                # Drop rows with invalid dates
+            df['date'] = pd.to_datetime(df['月份'], format='%Y.%m', errors='coerce')
+            
+            # Check if parsing was successful
+            if df['date'].notna().any():
+                # At least some dates parsed successfully
+                # Drop rows with invalid dates and sort
                 df = df[df['date'].notna()].copy()
-                # Sort by date descending (newest first)
                 df = df.sort_values('date', ascending=False).reset_index(drop=True)
-            except Exception as e:
-                print(f"Error parsing money supply dates: {e}")
-                # Fallback: assume first row is latest
+            else:
+                # All dates failed to parse, use raw string dates
+                print(f"Warning: Failed to parse money supply dates, using string fallback")
                 df = df.reset_index(drop=True)
                 df['date'] = df['月份'].astype(str)
             
