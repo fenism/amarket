@@ -202,31 +202,52 @@ def main():
             
             # Debug: Show data info
             if len(df_display) > 0:
+                vol_min = df_display['volume'].min()
+                vol_max = df_display['volume'].max()
+                vol_mean = df_display['volume'].mean()
+                zero_count = (df_display['volume'] == 0).sum()
+                non_zero_count = (df_display['volume'] > 0).sum()
+                
                 st.info(f"📊 数据范围: {df_display.index.min().strftime('%Y-%m-%d')} 至 {df_display.index.max().strftime('%Y-%m-%d')} | 共 {len(df_display)} 个交易日")
+                st.caption(f"🔍 成交量统计: 最小={vol_min:,.0f}, 最大={vol_max:,.0f}, 均值={vol_mean:,.0f} | 零值天数={zero_count}, 非零天数={non_zero_count}")
+                
+                # Check if data is problematic
+                if zero_count > len(df_display) * 0.9:
+                    st.error("❌ 数据异常: 90%以上的交易日成交量为0，请检查数据源")
+                    return
             else:
                 st.warning("⚠️ 无成交量数据")
                 return
+            
+            # Filter out zero/null values for better visualization
+            df_filtered = df_display[df_display['volume'] > 0].copy()
+            
+            if len(df_filtered) == 0:
+                st.error("❌ 所有交易日成交量均为0")
+                return
+            
+            st.caption(f"📈 实际绘制 {len(df_filtered)} 个非零成交量交易日")
             
             fig = go.Figure()
             
             # Volume Colors: Red if Close > Open, Green if Close <= Open
             # Need to iterate or use vector logic. 
             # Simple vector:
-            colors = ['red' if c > o else 'green' for c, o in zip(df_display['close'], df_display['open'])]
+            colors = ['red' if c > o else 'green' for c, o in zip(df_filtered['close'], df_filtered['open'])]
             
             # Convert dates to string for categorical axis
-            x_dates = df_display.index.strftime('%Y-%m-%d').tolist()
+            x_dates = df_filtered.index.strftime('%Y-%m-%d').tolist()
             
             fig.add_trace(go.Bar(
                 x=x_dates, 
-                y=df_display['volume'].tolist(), 
+                y=df_filtered['volume'].tolist(), 
                 name='成交量', 
                 marker_color=colors,
                 hovertemplate='日期: %{x}<br>成交量: %{y:,.0f}<extra></extra>'
             ))
                                  
-            # Calculate MA20
-            ma20_values = df_display['volume'].rolling(20).mean()
+            # Calculate MA20 on filtered data
+            ma20_values = df_filtered['volume'].rolling(20, min_periods=1).mean()
             
             fig.add_trace(go.Scatter(
                 x=x_dates, 
@@ -237,19 +258,21 @@ def main():
             ))
                                      
             fig.update_layout(
-                height=350,
+                height=400,
                 xaxis=dict(
                     type='category',
                     showgrid=True,
                     gridcolor='rgba(128,128,128,0.2)',
                     tickangle=-45,
-                    # Show more ticks for better visibility
-                    nticks=15
+                    # Ensure all dates are shown
+                    tickmode='auto',
+                    nticks=20
                 ),
                 yaxis=dict(
                     title='成交量',
                     showgrid=True,
-                    gridcolor='rgba(128,128,128,0.2)'
+                    gridcolor='rgba(128,128,128,0.2)',
+                    rangemode='tozero'  # Start from zero
                 ),
                 title=f"成交量 (最近90日: {df_display.index.min().strftime('%Y-%m-%d')} ~ {df_display.index.max().strftime('%Y-%m-%d')})",
                 hovermode='x unified',
@@ -260,7 +283,8 @@ def main():
                     y=1.02,
                     xanchor="right",
                     x=1
-                )
+                ),
+                bargap=0.1  # Small gap between bars
             )
             st.plotly_chart(fig, use_container_width=True)
         plot_board_charts(chart_funding)
