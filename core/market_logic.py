@@ -85,7 +85,9 @@ class MarketAnalyzer:
                     # We simply overwrite the last close with the accurate RT price.
                     # This ensures indicators.calculate_relative_strength uses the RT price.
                     df.at[df.index[-1], 'close'] = current_price
-                    df.at[df.index[-1], 'volume'] = current_vol # Optional, but good for volume indicators
+                    # NOTE: Do NOT overwrite volume! Real-time volume units (shares) differ from
+                    # K-line volume units (hands), causing 100x inflation and chart corruption.
+                    # df.at[df.index[-1], 'volume'] = current_vol  # BUGFIX: Commented out
                 
                 # ---------------------------
                 
