@@ -58,11 +58,23 @@ class MacroLoader:
                 # Standard SZ balance is ~7e11 (700 Billion) in Yuan
                 # Logic: Check magnitude of the latest SZ value
                 
+                latest_sh_raw = df_total['sh_balance'].iloc[-1]
                 latest_sz_raw = df_total['sz_balance'].iloc[-1]
                 
+                # Method 1: Absolute magnitude check
                 # If SZ is too small (e.g. 7e7 -> 70 Million), it's likely "Wan Yuan", needs * 10000
-                if latest_sz_raw < 1e9: 
+                if latest_sz_raw < 1e9 and latest_sh_raw > 1e11: 
                     df_total['sz_balance'] = df_total['sz_balance'] * 10000
+                    latest_sz_raw = df_total['sz_balance'].iloc[-1]  # Update after correction
+                
+                # Method 2: Ratio check (SZ should be roughly 0.7-1.2x of SH)
+                # If ratio is way off, one of them has wrong unit
+                if latest_sh_raw > 0:
+                    ratio = latest_sz_raw / latest_sh_raw
+                    if ratio > 3:  # SZ way too big, likely unit error (e.g. should be Wan but treated as Yuan*10000)
+                        df_total['sz_balance'] = df_total['sz_balance'] / 10000
+                    elif ratio < 0.01:  # SZ way too small, likely Wan treated as Yuan
+                        df_total['sz_balance'] = df_total['sz_balance'] * 10000
                     
                 df_total['total_balance'] = df_total['sh_balance'] + df_total['sz_balance']
                 
