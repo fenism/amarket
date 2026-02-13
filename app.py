@@ -293,8 +293,18 @@ def main():
         if "error" not in data['style']:
             style = data['style']
             st.metric("当前主线", style['suggestion'], f"趋势: {style['trend']}", delta_color="inverse")
-            rs = style['rs_line']
-            fig_style = px.line(x=rs.index, y=rs, labels={'x': '日期', 'y': '相对强弱 (创业板/沪指)'})
+            st.caption("逻辑: 相对强弱(RS) = 创业板/沪指。当RS位于均线(MA20)上方时，视为成长风格占优。")
+            
+            rs_line = style['rs_line']
+            rs_ma20 = style.get('rs_ma20', None)
+            
+            fig_style = go.Figure()
+            fig_style.add_trace(go.Scatter(x=rs_line.index, y=rs_line, name='RS (创业板/沪指)', line=dict(color='blue')))
+            
+            if rs_ma20 is not None:
+                fig_style.add_trace(go.Scatter(x=rs_ma20.index, y=rs_ma20, name='MA20', line=dict(color='orange', width=1)))
+                
+            fig_style.update_layout(title="风格相对强弱趋势", height=350, hovermode="x unified")
             st.plotly_chart(fig_style, use_container_width=True)
         else:
             st.write("数据不足")

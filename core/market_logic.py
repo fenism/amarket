@@ -159,14 +159,25 @@ class MarketAnalyzer:
                 current_rs = rs_line.iloc[-1]
                 prev_rs = rs_line.iloc[-2]
                 
-                # Logic: Suggested style is the one gaining relative strength
-                is_growth_stronger = current_rs > prev_rs
+                # Logic: Suggested style based on Trend (RS vs MA20)
+                # If RS is above its 20-day MA, Growth is leading.
+                rs_ma20 = rs_line.rolling(20).mean()
+                current_ma20 = rs_ma20.iloc[-1]
+                
+                is_growth_stronger = current_rs > current_ma20
+                
+                # Determine trend strength description
+                if is_growth_stronger:
+                     trend_desc = "强化 (RS > MA20)" if current_rs > prev_rs else "震荡 (RS > MA20)"
+                else:
+                     trend_desc = "弱势 (RS < MA20)"
                 
                 style = {
                    "rs_value": current_rs,
-                   "trend": "强化", # The suggested style is always the one strengthening in momentum
+                   "trend": trend_desc, 
                    "suggestion": "成长/科技 (创业板)" if is_growth_stronger else "价值/蓝筹 (沪指)",
                    "rs_line": rs_line,
+                   "rs_ma20": rs_ma20, # Pass MA20 for charting
                    "is_growth": is_growth_stronger
                 }
             else:
