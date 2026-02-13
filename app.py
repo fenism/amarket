@@ -1,6 +1,9 @@
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
+from datetime import datetime
+import pytz
+
 from core.market_logic import MarketAnalyzer
 import pandas as pd
 import os
@@ -170,8 +173,8 @@ def main():
     st.divider()
 
     # Display last update time
-    from datetime import datetime
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    beijing_tz = pytz.timezone('Asia/Shanghai')
+    current_time = datetime.now(beijing_tz).strftime('%Y-%m-%d %H:%M:%S')
     st.subheader(f"2. 市场全景 (Snapshot) - {data['date'].strftime('%Y-%m-%d %H:%M') if data['date'] else 'N/A'}")
     st.caption(f"🔄 最后更新: {current_time} | 数据每10秒自动刷新")
     
