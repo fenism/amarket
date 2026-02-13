@@ -208,16 +208,29 @@ def main():
     beijing_tz = pytz.timezone('Asia/Shanghai')
     current_time = datetime.now(beijing_tz).strftime('%Y-%m-%d %H:%M:%S')
     
-    # Get snapshot date in Beijing time (if data['date'] exists)
-    if data.get('date'):
-        # Assuming data['date'] is already timezone-aware or needs conversion
-        snapshot_date = data['date']
-        if hasattr(snapshot_date, 'tzinfo') and snapshot_date.tzinfo is None:
-            # If naive, localize to Beijing
-            snapshot_date = beijing_tz.localize(snapshot_date)
-        snapshot_str = snapshot_date.strftime('%Y-%m-%d %H:%M')
+    # Determine snapshot time to display in title
+    now = datetime.now(beijing_tz)
+    
+    if is_trading_hours():
+        # During trading hours: show current real-time
+        snapshot_str = now.strftime('%Y-%m-%d %H:%M')
     else:
-        snapshot_str = 'N/A'
+        # After market close: freeze at last close time
+        if now.weekday() >= 5:
+            # Weekend: show last Friday 15:00
+            days_since_friday = (now.weekday() - 4) % 7
+            last_friday = now - pd.Timedelta(days=days_since_friday)
+            snapshot_str = last_friday.strftime('%Y-%m-%d') + ' 15:00'
+        elif now.time() < datetime.strptime("09:00", "%H:%M").time():
+            # Before market open: show previous day 15:00
+            prev_day = now - pd.Timedelta(days=1)
+            # If previous day is weekend, go to Friday
+            while prev_day.weekday() >= 5:
+                prev_day = prev_day - pd.Timedelta(days=1)
+            snapshot_str = prev_day.strftime('%Y-%m-%d') + ' 15:00'
+        else:
+            # After market close (>15:00): show today 15:00
+            snapshot_str = now.strftime('%Y-%m-%d') + ' 15:00'
     
     st.subheader(f"2. 市场全景 (Snapshot) - {snapshot_str}")
     
