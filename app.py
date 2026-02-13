@@ -117,7 +117,7 @@ def main():
                                layer="below", line_width=0)
             
             # Healthy zone (scissors > 0%): Light green
-            fig_money.add_hrect(y0=0, y1=20, fillcolor="rgba(0,255,0,0.1)", 
+            fig_money.add_hrect(y0=0, y1=40, fillcolor="rgba(0,255,0,0.1)", 
                                layer="below", line_width=0)
             
             # M1 YoY
@@ -158,7 +158,7 @@ def main():
                 hovermode="x unified",
                 yaxis=dict(
                     title="%",
-                    range=[-20, 20]  # Limit Y-axis range to reduce white space
+                    range=[-20, 40]  # Y-axis range to accommodate M1/M2 peaks
                 ),
                 showlegend=True,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
