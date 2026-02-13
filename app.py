@@ -243,7 +243,7 @@ def main():
                 y=df_filtered['volume'].tolist(), 
                 name='成交量', 
                 marker_color=colors,
-                hovertemplate='日期: %{x}<br>成交量: %{y:,.0f}<extra></extra>'
+                hovertemplate='日期: %{x}<br>成交量: %{y:,.0f} 手<extra></extra>'
             ))
                                  
             # Calculate MA20 on filtered data
@@ -269,12 +269,12 @@ def main():
                     nticks=20
                 ),
                 yaxis=dict(
-                    title='成交量',
+                    title='成交量 (手)',
                     showgrid=True,
                     gridcolor='rgba(128,128,128,0.2)',
                     rangemode='tozero'  # Start from zero
                 ),
-                title=f"成交量 (最近90日: {df_display.index.min().strftime('%Y-%m-%d')} ~ {df_display.index.max().strftime('%Y-%m-%d')})",
+                title=f"成交量 (最近90日: {df_display.index.min().strftime('%Y-%m-%d')} ~ {df_display.index.max().strftime('%Y-%m-%d')}) - 单位: 手",
                 hovermode='x unified',
                 showlegend=True,
                 legend=dict(

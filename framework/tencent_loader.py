@@ -49,7 +49,7 @@ class TencentLoader:
                 name = parts[1]
                 price = float(parts[3])
                 pct_chg = float(parts[32])
-                volume = float(parts[6]) * 100 # Convert hands to shares
+                volume = float(parts[6]) # Keep in hands (1 hand = 100 shares) to match K-line data
                 amount = float(parts[37]) * 10000 # Convert wan to raw
                 
                 data_list.append({
